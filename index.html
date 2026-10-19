@@ -33,6 +33,7 @@ main h2{font-size:clamp(1.7rem,3.6vw,2.4rem);line-height:1.15;margin:.9rem 0 1.2
 .intro{font-size:1.15rem}
 h3{font-size:1.15rem;margin:2rem 0 .5rem;padding-top:1rem;border-top:1px solid var(--line)}
 ul{padding-left:1.2rem}li{margin:.35rem 0}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:6px;overflow-x:auto;line-height:1.5;margin:1rem 0}pre code{background:none;padding:0;font-size:.88rem}
 code{font:.85em ui-monospace,Menlo,Consolas,monospace;background:var(--code);padding:.1em .4em;border-radius:4px}
 .key{margin-top:2.25rem;padding:1rem 1.25rem;background:var(--key);border-left:5px solid var(--key-line);border-radius:0 6px 6px 0}
 .key b{font-family:"Bricolage Grotesque",sans-serif}
@@ -52,11 +53,11 @@ code{font:.85em ui-monospace,Menlo,Consolas,monospace;background:var(--code);pad
   </aside>
   <main id="view" tabindex="-1"></main>
 </div>
-<script src="questions.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 let cat = "All", q = "";
-const cats = ["All", ...new Set(QUESTIONS.map(x => x.category))];
+let QUESTIONS = [], cats = ["All"];
+const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const text = x => (x.question + " " + x.category + " " + JSON.stringify(x.sections) + (x.intro||"")).toLowerCase();
 
 function visible(){ return QUESTIONS.filter(x => (cat==="All"||x.category===cat) && text(x).includes(q)); }
@@ -80,14 +81,17 @@ function renderAnswer(){
     <span class="tag">${x.category}</span>
     <h2>${x.question}</h2>
     ${x.intro ? `<p class="intro">${x.intro}</p>` : ""}
-    ${x.sections.map(s => `<h3>${s.title}</h3>${s.text?`<p>${s.text}</p>`:""}${s.points?`<ul>${s.points.map(p=>`<li>${p}</li>`).join("")}</ul>`:""}`).join("")}
-    ${x.keyPoint ? `<div class="key"><b>Key interview point.</b> ${x.keyPoint}</div>` : ""}
+    ${x.sections.map(s => `<h3>${s.title}</h3>${s.text?`<p>${s.text}</p>`:""}${s.code?`<pre><code>${esc(s.code)}</code></pre>`:""}${s.points?`<ul>${s.points.map(p=>`<li>${p}</li>`).join("")}</ul>`:""}`).join("")}
+    ${x.keyPoint ? `<div class="key"><b>${x.keyLabel || "Key interview point"}.</b> ${x.keyPoint}</div>` : ""}
     <div class="pager"><span>${prev?`<a href="#${prev.id}">Previous: ${prev.question.slice(0,40)}…</a>`:""}</span><span>${next?`<a href="#${next.id}">Next: ${next.question.slice(0,40)}…</a>`:""}</span></div>`;
 }
 $("cats").onclick = e => { if(e.target.dataset.c){ cat = e.target.dataset.c; renderCats(); renderList(); } };
 $("search").oninput = e => { q = e.target.value.toLowerCase().trim(); renderList(); };
 addEventListener("hashchange", () => { renderList(); renderAnswer(); $("view").focus(); scrollTo(0,0); });
-renderCats(); renderList(); renderAnswer();
+fetch("questions.json?v=" + Date.now()).then(r => r.json()).then(d => {
+  QUESTIONS = d; cats = ["All", ...new Set(d.map(x => x.category))];
+  renderCats(); renderList(); renderAnswer();
+}).catch(() => { $("view").innerHTML = "<p>Could not load questions. Refresh the page to try again.</p>"; });
 </script>
 </body>
 </html>

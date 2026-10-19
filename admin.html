@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manage questions</title>
+<style>
+:root{--bg:#f2f4f3;--panel:#fff;--ink:#16221f;--muted:#5d6b67;--line:#d5dcd9;--accent:#0b7a63;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#101716;--panel:#172220;--ink:#e6efec;--muted:#93a5a0;--line:#2a3b38;--accent:#4fd1b0;--bad:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:820px;margin:0 auto;padding:2rem 1.25rem 4rem}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1.25rem;margin-bottom:1.25rem}
+h1{margin:0 0 1rem}h2{margin:0 0 .75rem;font-size:1.2rem}
+label{display:block;font-weight:600;margin:.8rem 0 .25rem;font-size:.9rem}
+input,textarea{width:100%;padding:.55rem .7rem;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:70px;resize:vertical}textarea.code{font-family:ui-monospace,Consolas,monospace;font-size:.88rem}
+button{font:inherit;font-weight:600;padding:.55rem 1rem;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:none;color:var(--accent)}button.del{background:none;color:var(--bad);border-color:var(--bad)}
+button:disabled{opacity:.5}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:1rem}
+.item{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.6rem 0;border-top:1px solid var(--line)}
+.item small{color:var(--muted)}.sec{border:1px dashed var(--line);border-radius:6px;padding:.75rem;margin-top:1rem}
+#msg{margin-top:.75rem;font-weight:600}.hint{color:var(--muted);font-size:.85rem;margin:.25rem 0 0}
+</style></head>
+<body><main>
+<h1>Manage questions</h1>
+
+<section id="login">
+  <h2>1. Connect to GitHub</h2>
+  <label for="repo">Repository</label><input id="repo" value="sudarshanw/android-interview-prep">
+  <label for="tok">Access token</label><input id="tok" type="password" autocomplete="off" placeholder="github_pat_...">
+  <p class="hint">Create a fine-grained token limited to this repository with <b>Contents: Read and write</b>. It stays in this browser only.</p>
+  <label><input type="checkbox" id="remember" style="width:auto"> Remember token on this device</label>
+  <div class="row"><button id="load">Connect and load questions</button></div>
+  <div id="msg" role="status"></div>
+</section>
+
+<section id="listBox" hidden>
+  <h2>Your questions (<span id="n">0</span>)</h2>
+  <div id="list"></div>
+</section>
+
+<section id="formBox" hidden>
+  <h2 id="formTitle">Add a question</h2>
+  <label for="cat">Category</label><input id="cat" placeholder="Kotlin, Jetpack Compose, Coroutines...">
+  <label for="q">Question</label><textarea id="q"></textarea>
+  <label for="intro">Short intro (optional)</label><textarea id="intro"></textarea>
+  <div id="secs"></div>
+  <div class="row"><button class="ghost" id="addSec" type="button">Add section</button></div>
+  <label for="klabel">Highlight label (optional)</label><input id="klabel" placeholder="Key interview point">
+  <label for="kp">Highlight text (optional)</label><textarea id="kp"></textarea>
+  <div class="row"><button id="save">Save to website</button><button class="ghost" id="reset" type="button">Clear form</button></div>
+</section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let data = [], sha = "", editing = -1;
+const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const say = (t, bad) => { $("msg").textContent = t; $("msg").style.color = bad ? "var(--bad)" : "var(--accent)"; };
+const api = path => `https://api.github.com/repos/${$("repo").value.trim()}/contents/${path}`;
+const hdr = () => ({Authorization: "Bearer " + $("tok").value.trim(), Accept: "application/vnd.github+json"});
+
+$("tok").value = localStorage.getItem("ghtok") || ""; $("remember").checked = !!$("tok").value;
+
+async function load(){
+  say("Loading...");
+  try{
+    const r = await fetch(api("questions.json?ref=main&t=" + Date.now()), {headers: hdr()});
+    if(!r.ok) throw new Error(r.status === 401 ? "Token not accepted. Check it and try again." : r.status === 404 ? "questions.json not found in that repository." : "GitHub error " + r.status);
+    const j = await r.json();
+    sha = j.sha; data = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\n/g,"")), c => c.charCodeAt(0))));
+    if($("remember").checked) localStorage.setItem("ghtok", $("tok").value.trim()); else localStorage.removeItem("ghtok");
+    $("listBox").hidden = $("formBox").hidden = false; say("Connected."); renderList(); if(!$("secs").children.length) addSec();
+  }catch(e){ say(e.message, true); }
+}
+function renderList(){
+  $("n").textContent = data.length;
+  $("list").innerHTML = data.map((x,i) => `<div class="item"><div><small>${esc(x.category)}</small><br>${esc(x.question)}</div><div class="row" style="margin:0"><button class="ghost" data-e="${i}">Edit</button><button class="del" data-d="${i}">Delete</button></div></div>`).join("") || "<p>No questions yet.</p>";
+}
+function addSec(s = {}){
+  const d = document.createElement("div"); d.className = "sec";
+  d.innerHTML = `<label>Section title</label><input class="t" value="${esc(s.title||"")}">
+  <label>Text (optional)</label><textarea class="x">${esc(s.text||"")}</textarea>
+  <label>Code (optional)</label><textarea class="code c">${esc(s.code||"")}</textarea>
+  <label>Bullet points (optional, one per line)</label><textarea class="p">${esc((s.points||[]).join("\n"))}</textarea>
+  <div class="row"><button class="del" type="button">Remove section</button></div>`;
+  d.querySelector(".del").onclick = () => d.remove(); $("secs").appendChild(d);
+}
+function clearForm(){ editing = -1; $("formTitle").textContent = "Add a question"; ["cat","q","intro","klabel","kp"].forEach(i => $(i).value = ""); $("secs").innerHTML = ""; addSec(); }
+function collect(){
+  const sections = [...$("secs").children].map(d => {
+    const o = {title: d.querySelector(".t").value.trim()}, x = d.querySelector(".x").value.trim(), c = d.querySelector(".c").value.replace(/\s+$/,""), p = d.querySelector(".p").value.split("\n").map(s => s.trim()).filter(Boolean);
+    if(x) o.text = x; if(c) o.code = c; if(p.length) o.points = p; return o;
+  }).filter(s => s.title);
+  const o = {id: "", category: $("cat").value.trim(), question: $("q").value.trim()};
+  if($("intro").value.trim()) o.intro = $("intro").value.trim();
+  o.sections = sections;
+  if($("klabel").value.trim()) o.keyLabel = $("klabel").value.trim();
+  if($("kp").value.trim()) o.keyPoint = $("kp").value.trim();
+  return o;
+}
+async function commit(msg){
+  const body = {message: msg, branch: "main", sha, content: btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data, null, 2) + "\n")))};
+  const r = await fetch(api("questions.json"), {method: "PUT", headers: hdr(), body: JSON.stringify(body)});
+  if(!r.ok) throw new Error(r.status === 403 || r.status === 404 ? "Token cannot write to this repository. It needs Contents: Read and write." : r.status === 409 ? "The file changed elsewhere. Click Connect and load questions, then try again." : "GitHub error " + r.status);
+  sha = (await r.json()).content.sha; renderList();
+}
+$("load").onclick = load;
+$("addSec").onclick = () => addSec();
+$("reset").onclick = clearForm;
+$("save").onclick = async () => {
+  const o = collect();
+  if(!o.category || !o.question || !o.sections.length) return say("Add a category, a question and at least one section with a title.", true);
+  const slug = o.question.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50);
+  o.id = editing >= 0 ? data[editing].id : slug;
+  if(editing < 0 && data.some(x => x.id === o.id)) o.id += "-" + Date.now().toString(36).slice(-4);
+  const prev = JSON.stringify(data); $("save").disabled = true; say("Saving...");
+  try{ if(editing >= 0) data[editing] = o; else data.push(o); await commit((editing >= 0 ? "Update: " : "Add: ") + o.question.slice(0,60)); say("Saved. The website updates in about a minute."); clearForm(); }
+  catch(e){ data = JSON.parse(prev); say(e.message, true); }
+  $("save").disabled = false;
+};
+$("list").onclick = async e => {
+  const ed = e.target.dataset.e, dl = e.target.dataset.d;
+  if(ed !== undefined){
+    const x = data[ed]; editing = +ed; $("formTitle").textContent = "Edit question";
+    $("cat").value = x.category; $("q").value = x.question; $("intro").value = x.intro||""; $("klabel").value = x.keyLabel||""; $("kp").value = x.keyPoint||"";
+    $("secs").innerHTML = ""; x.sections.forEach(addSec); $("formBox").scrollIntoView();
+  }
+  if(dl !== undefined && confirm("Delete this question from the website?")){
+    const prev = JSON.stringify(data);
+    try{ data.splice(+dl,1); await commit("Delete question"); say("Deleted."); }catch(err){ data = JSON.parse(prev); say(err.message, true); }
+  }
+};
+</script></body></html>

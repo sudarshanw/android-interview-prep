@@ -1,0 +1,58 @@
+[
+  {
+    "id": "hilt-internals",
+    "category": "Dependency Injection",
+    "question": "How does Hilt work internally? How does it create dependencies and manage their lifecycle?",
+    "intro": "Hilt is a dependency injection library built on top of Dagger that generates the code required to create and provide dependencies automatically.",
+    "sections": [
+      {
+        "title": "How does Hilt work?",
+        "points": [
+          "<code>@HiltAndroidApp</code> initialises the application's dependency injection setup.",
+          "<code>@Inject</code> tells Hilt which constructor or field needs dependency injection.",
+          "<code>@Module</code>, <code>@Provides</code>, and <code>@Binds</code> define how dependencies are provided.",
+          "Hilt generates the dependency graph at compile time."
+        ]
+      },
+      {
+        "title": "How are objects created?",
+        "text": "When a class requests a dependency, Hilt follows the generated dependency graph, creates the required objects, and supplies them automatically."
+      },
+      {
+        "title": "How does Hilt manage lifecycle?",
+        "text": "Hilt uses components and scopes to control how long dependency instances are retained.",
+        "points": [
+          "<code>@Singleton</code>: one instance per <code>SingletonComponent</code> instance, typically the application.",
+          "<code>@ActivityScoped</code>: one instance per Activity component.",
+          "<code>@ViewModelScoped</code>: one instance within a given ViewModel component."
+        ]
+      }
+    ],
+    "keyPoint": "Hilt generates dependency injection code at compile time, while component scopes determine instance reuse and lifetime."
+  },
+  {
+    "id": "kotlin-extension-functions",
+    "category": "Kotlin",
+    "question": "What are Extension Functions in Kotlin? How do they work internally, and how are they different from inheritance?",
+    "sections": [
+      {
+        "title": "What are Extension Functions?",
+        "text": "Extension functions let us add a new function to an existing class without modifying its code or creating a subclass.",
+        "code": "fun String.addHello(): String {\n    return \"Hello, $this\"\n}\n\nprintln(\"Kotlin\".addHello()) // Hello, Kotlin"
+      },
+      {
+        "title": "How do they work internally?",
+        "text": "Kotlin does not actually add the function to the original class. On the JVM, the compiler turns a top-level extension function into a <code>static</code> method that takes the object as a parameter."
+      },
+      {
+        "title": "Extension Functions vs Inheritance",
+        "points": [
+          "<b>Extension functions:</b> add convenience functions without changing the class or its hierarchy.",
+          "<b>Inheritance:</b> creates a parent-child relationship, allowing a subclass to reuse and, where permitted, override parent behaviour."
+        ]
+      }
+    ],
+    "keyLabel": "Remember",
+    "keyPoint": "Extensions add functionality from the outside; inheritance extends a class through a parent-child relationship."
+  }
+]
