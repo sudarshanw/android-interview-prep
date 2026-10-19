@@ -54,5 +54,17 @@
     ],
     "keyLabel": "Remember",
     "keyPoint": "Extensions add functionality from the outside; inheritance extends a class through a parent-child relationship."
+  },
+  {
+    "id": "q-when-would-you-use-a-foreground-service-instead-",
+    "category": "Background Processing",
+    "question": "Q. When would you use a Foreground Service instead of WorkManager?",
+    "intro": "Answer:\nIt depends on whether the task needs to run as an ongoing, user-visible operation or can be deferred.",
+    "sections": [
+      {
+        "title": "✅ Foreground Service  Keeps an ongoing task active and visible to the user. Shows a persistent notification. Example: Playing music while the user navigates to another app.  ✅ WorkManager  Schedules work that should execute reliably when system conditions allow. Supports network constraints, retries, and persistent work. Example: Uploading pending data when an internet connection becomes available."
+      }
+    ],
+    "keyPoint": "📌 Interview Tip: WorkManager does not guarantee immediate execution. A Foreground Service is not a replacement for all background work either; it must satisfy Android's foreground-service restrictions."
   }
 ]
